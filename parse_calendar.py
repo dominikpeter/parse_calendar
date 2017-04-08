@@ -36,6 +36,9 @@ def parse_html(html):
 def html_to_list(start, end, lang = 'de'):
     if lang not in ['de', 'fr', 'it']:
         raise ValueError("Language must be 'de', 'fr' or 'it'")
+
+    geos = get_geos("https://www.feiertagskalender.ch/index.php?jahr=2017&geo=3056&klasse=3&hl=de&hidepast=1")
+
     l = {}
     for i in range(start,end):
         for geo in geos:
@@ -50,16 +53,18 @@ def html_to_list(start, end, lang = 'de'):
     return l
 
 def main():
-    geos = get_geos("https://www.feiertagskalender.ch/index.php?jahr=2017&geo=3056&klasse=3&hl=de&hidepast=1")
-
     now = datetime.datetime.now()
     start = now.year-10
     end = now.year+20
 
+    print("parsing page...")
+
     l = html_to_list(start, end)
 
+    print("writing json...")
+
     with open('data.json', 'w') as outfile:
-        json.dump(l, outfile)
+        json.dump(l, {"result": outfile})
 
 if __name__ == '__main__':
     main()
