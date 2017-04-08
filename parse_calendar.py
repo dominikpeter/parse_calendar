@@ -32,6 +32,13 @@ def parse_html(html):
 
     return title, part
 
+def to_pandas(list):
+    df = pd.DataFrame(columns=["day", "month", "year","day", "kw", "desc", "title"])
+    for i in list.keys():
+        d = pd.DataFrame(list[i], columns=["day", "month", "year","day", "kw", "desc"])
+        d['title'] = str(i)
+        df = df.append(d)
+    return df
 
 def clean_string(string):
     day_year = re.findall("\d+",string)[0:2]
@@ -77,6 +84,11 @@ def main():
 
     with open('data.json', 'w') as outfile:
         json.dump(l, outfile)
+
+    df = to_pandas(l)
+
+    df.to_csv("data.csv", sep=";", index=False)
+    df.to_excel("data.xlsx", index=False)
 
 if __name__ == '__main__':
     main()
