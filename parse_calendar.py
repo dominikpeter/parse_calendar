@@ -27,10 +27,20 @@ def parse_html(html):
     source = urllib.request.urlopen(html)
     soup = bs.BeautifulSoup(source, 'lxml')
 
-    title = soup.find('title').text
+    title = re.sub("  "," ",soup.find('title').text)
     part = soup.select(".list-group-item")
 
     return title, part
+
+
+def clean_string(string):
+    day_year = re.findall("\d+",string)[0:2]
+    month = re.findall("\. \w+ ",string)[0][2:-1]
+    kw = re.findall("\(\w+ \d+\)", string)[0][1:-1]
+    i = re.search("\)", string).start()
+    desc = re.sub(r'[^a-zA-Z\.\s:]',' ', string[i+1:])
+    day = re.findall("\d{4}\w{2}", string)[0][4:]
+    return [day_year[0], month, day_year[1], day, kw, desc.rstrip()]
 
 
 def html_to_list(start, end, lang = 'de'):
@@ -46,7 +56,7 @@ def html_to_list(start, end, lang = 'de'):
                 url = "https://www.feiertagskalender.ch/index.php?geo="+str(geo)+"&klasse=3&jahr="+str(i)+"&hl="+str(lang)
                 title, part = parse_html(url)
                 array = []
-                [array.append(i.text) for i in part]
+                [array.append(clean_string(i.text)) for i in part]
                 l[title] = array
                 print("Parsing: "+str(title))
             except:
