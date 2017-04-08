@@ -40,8 +40,8 @@ def clean_string(string):
     i = re.search("\)", string).start()
     desc = re.sub(r'[^a-zA-Z\.\s:]',' ', string[i+1:])
     day = re.findall("\d{4}\w{2}", string)[0][4:]
-    formatted =  day_year[1] + "-" + month + "-" + day_year[0]
-    return [day_year[0], month, day_year[1], day, formatted, kw, desc.rstrip()]
+    #formatted =  day_year[1] + "-" + month + "-" + day_year[0]
+    return [day_year[0], month, day_year[1], day, kw, desc.rstrip()]
 
 
 def html_to_list(start, end, lang = 'de'):
