@@ -1,5 +1,5 @@
-
 # coding: utf-8
+
 import bs4 as bs
 import urllib.request
 import pandas as pd
@@ -48,6 +48,7 @@ def html_to_list(start, end, lang = 'de'):
                 array = []
                 [array.append(i.text) for i in part]
                 l[title] = array
+                print("Parsing: "+str(title))
             except:
                 pass
     return l
@@ -55,7 +56,7 @@ def html_to_list(start, end, lang = 'de'):
 def main():
     now = datetime.datetime.now()
     start = now.year-10
-    end = now.year+20
+    end = now.year+10
 
     print("parsing page...")
 
@@ -64,7 +65,7 @@ def main():
     print("writing json...")
 
     with open('data.json', 'w') as outfile:
-        json.dump(l, {"result": outfile})
+        json.dump(l, outfile)
 
 if __name__ == '__main__':
     main()
