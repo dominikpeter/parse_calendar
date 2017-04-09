@@ -7,6 +7,9 @@ import numpy as np
 import re
 import datetime
 import json
+import argparse
+from collections import defaultdict
+
 
 
 def get_geos(html):
@@ -33,11 +36,12 @@ def parse_html(html):
     return title, part
 
 def to_pandas(list):
-    df = pd.DataFrame(columns=["day", "month", "year","day", "kw", "desc", "title"])
+    df = pd.DataFrame(columns=["day", "month", "year","day", "kw", "desc", "kanton"])
     for i in list.keys():
-        d = pd.DataFrame(list[i], columns=["day", "month", "year","day", "kw", "desc"])
-        d['title'] = str(i)
-        df = df.append(d)
+        for data in list[i].keys():
+            d = pd.DataFrame(list[i][data], columns=["day", "month", "year","day", "kw", "desc"])
+            d['kanton'] = str(i)
+            df = pd.concat([df, d],  axis=0)
     return df
 
 def clean_string(string):
@@ -45,11 +49,18 @@ def clean_string(string):
     month = re.findall("\. \w+ ",string)[0][2:-1]
     kw = re.findall("\(\w+ \d+\)", string)[0][1:-1]
     i = re.search("\)", string).start()
-    desc = re.sub(r'[^a-zA-Z\.\s:]',' ', string[i+1:])
+    desc = re.sub(r'[^\u00C0-\u017Fa-zA-Z\.\s:]',' ', string[i+1:])
     day = re.findall("\d{4}\w{2}", string)[0][4:]
     #formatted =  day_year[1] + "-" + month + "-" + day_year[0]
     return [day_year[0], month, day_year[1], day, kw, desc.rstrip()]
 
+
+def get_kanton(string):
+    clean = re.sub(r'[^\u00C0-\u017Fa-zA-Z\.\s:]',' ', string)
+    i = re.search("\  ", clean).start()
+    kanton = clean[0:i]
+    typ = clean[i:]
+    return str(kanton), str(typ)
 
 def html_to_list(start, end, lang = 'de'):
     if lang not in ['de', 'fr', 'it']:
@@ -57,38 +68,80 @@ def html_to_list(start, end, lang = 'de'):
 
     geos = get_geos("https://www.feiertagskalender.ch/index.php?jahr=2017&geo=3056&klasse=3&hl=de&hidepast=1")
 
-    l = {}
-    for i in range(start,end):
+    # l = {}
+    # for i in range(start,end):
+    #     for geo in geos:
+    #         try:
+    #             url = "https://www.feiertagskalender.ch/index.php?geo="+str(geo)+"&klasse=3&jahr="+str(i)+"&hl="+str(lang)
+    #             title, part = parse_html(url)
+    #             title, typ = get_kanton(title)
+    #             array = []
+    #             [array.append(clean_string(i.text)) for i in part]
+    #             l[title][i] = array
+    #             print("Parsing... %s, Year: %s" % (str(title), str(i)))
+    #         except:
+    #             pass
+    # return l
+
+    l = defaultdict(lambda: defaultdict(list))
+    try:
         for geo in geos:
             try:
-                url = "https://www.feiertagskalender.ch/index.php?geo="+str(geo)+"&klasse=3&jahr="+str(i)+"&hl="+str(lang)
-                title, part = parse_html(url)
-                array = []
-                [array.append(clean_string(i.text)) for i in part]
-                l[title] = array
-                print("Parsing: "+str(title))
+                for i in range(start, end):
+                    url = "https://www.feiertagskalender.ch/index.php?geo="+str(geo)+"&klasse=3&jahr="+str(i)+"&hl="+str(lang)
+                    title, part = parse_html(url)
+                    title, typ = get_kanton(title)
+                    array = []
+                    [array.append(clean_string(i.text)) for i in part]
+                    l[title][i] = array
+                    print("Parsing... %s, Year: %s" % (str(title), str(i)))
             except:
                 pass
+    except:
+        pass
+
     return l
 
-def main():
+
+if __name__ == '__main__':
+
     now = datetime.datetime.now()
-    start = now.year-10
-    end = now.year+10
+
+    parser = argparse.ArgumentParser(description="Parse Webcalendar",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('--from', type=int,
+                        dest='startyear', default=now.year-10, help='Year to begin parsing')
+
+    parser.add_argument('--to', type=int,
+                        dest='endyear', default=now.year+10, help='Year to stop parsing')
+
+    parser.add_argument('--output', type=str,
+                        dest='output', default = 'all', help='Excel, JSON or CSV')
+
+    parser.add_argument('--language', type=str,
+                        dest='language', default = 'de', help='DE, FR or IT')
+
+    args = parser.parse_args()
 
     print("parsing page...")
 
-    l = html_to_list(start, end)
+    l = html_to_list(args.startyear, args.endyear+1, args.language)
 
-    print("writing json...")
+    print("writing file...")
 
-    with open('data.json', 'w') as outfile:
-        json.dump(l, outfile)
-
-    df = to_pandas(l)
-
-    df.to_csv("data.csv", sep=";", index=False)
-    df.to_excel("data.xlsx", index=False)
-
-if __name__ == '__main__':
-    main()
+    if args.output == 'all':
+        df = to_pandas(l)
+        with open('data.json', 'w') as outfile:
+            json.dump(l, outfile)
+        df.to_excel("data.xlsx", index=False)
+        df.to_csv("data.csv", sep=";", index=False)
+    elif args.output == 'excel':
+        df = to_pandas(l)
+        df.to_excel("data.xlsx", index=False)
+    elif args.output == 'csv':
+        df = to_pandas(l)
+        df.to_csv("data.csv", sep=";", index=False)
+    else:
+        with open('data.json', 'w') as outfile:
+            json.dump(l, outfile)
