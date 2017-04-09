@@ -12,6 +12,14 @@ from collections import defaultdict
 
 
 
+def lookup_month(string):
+    lookup = {'Januar': "01", 'Februar': "02", 'März': "03",
+            'April': "04", 'Mai': "05", 'Juni': "06",
+            'Juli': "07", 'August': "08", 'September': "09",
+            'Oktober': "10", 'November': "11", 'Dezember': "12"}
+    return lookup[string]
+
+
 def get_geos(html):
     source = urllib.request.urlopen(html)
     soup = bs.BeautifulSoup(source, 'lxml')
@@ -36,11 +44,11 @@ def parse_html(html):
     return title, part
 
 def to_pandas(list):
-    df = pd.DataFrame(columns=["day", "month", "year","day", "kw", "desc", "kanton"])
+    df = pd.DataFrame(columns=["day", "month","month_int","year","day","week","date","desc","state"])
     for i in list.keys():
         for data in list[i].keys():
-            d = pd.DataFrame(list[i][data], columns=["day", "month", "year","day", "kw", "desc"])
-            d['kanton'] = str(i)
+            d = pd.DataFrame(list[i][data], columns=["day","month","month_int","year","day","week","date","desc"])
+            d['state'] = str(i)
             df = pd.concat([df, d],  axis=0)
     return df
 
@@ -51,14 +59,16 @@ def clean_string(string):
     i = re.search("\)", string).start()
     desc = re.sub(r'[^\u00C0-\u017Fa-zA-Z\.\s:]',' ', string[i+1:])
     day = re.findall("\d{4}\w{2}", string)[0][4:]
+    month_int = lookup_month(month)
+    date = str(day_year[1]) + '-' + str(month_int) + '-' + str(day_year[0])
     #formatted =  day_year[1] + "-" + month + "-" + day_year[0]
-    return [day_year[0], month, day_year[1], day, kw, desc.rstrip()]
+    return [day_year[0], month, month_int, day_year[1], day, kw, date, desc.rstrip()]
 
 
-def get_kanton(string):
+def get_state(string):
     clean = re.sub(r'[^\u00C0-\u017Fa-zA-Z\.\s:]',' ', string)
     i = re.search("\  ", clean).start()
-    kanton = clean[0:i]
+    kanton = re.sub("Kanton ","", clean[0:i])
     typ = clean[i:]
     return str(kanton), str(typ)
 
@@ -90,7 +100,7 @@ def html_to_list(start, end, lang = 'de'):
                 for i in range(start, end):
                     url = "https://www.feiertagskalender.ch/index.php?geo="+str(geo)+"&klasse=3&jahr="+str(i)+"&hl="+str(lang)
                     title, part = parse_html(url)
-                    title, typ = get_kanton(title)
+                    title, typ = get_state(title)
                     array = []
                     [array.append(clean_string(i.text)) for i in part]
                     l[title][i] = array
@@ -141,7 +151,7 @@ if __name__ == '__main__':
         df.to_excel("data.xlsx", index=False)
     elif args.output == 'csv':
         df = to_pandas(l)
-        df.to_csv("data.csv", sep=";", index=False)
+        df.to_csv("data.csv", sep=";", index=False, quotechar='"')
     else:
         with open('data.json', 'w') as outfile:
             json.dump(l, outfile)
